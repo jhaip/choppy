@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>three.js webgl - STL</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
+			body {
+				font-family: Monospace;
+				background-color: #000000;
+				margin: 0px;
+				overflow: hidden;
+			}
+
+			#info {
+				color: #fff;
+				position: absolute;
+				top: 10px;
+				width: 100%;
+				text-align: center;
+				z-index: 100;
+				display:block;
+
+			}
+
+			a { color: skyblue }
+			.button { background:#999; color:#eee; padding:0.2em 0.5em; cursor:pointer }
+			.highlight { background:orange; color:#fff; }
+
+			/*span {
+				display: inline-block;
+				width: 60px;
+				float: left;
+				text-align: center;
+			}*/
+
+			.outer-container {
+		    display: flex;
+		    flex-direction: row;
+		    align-items: stretch;
+		    flex-wrap: nowrap;
+		    justify-content: flex-end;
+			}
+			#sidebar {
+		    flex: 200px 0 0;
+				width: 200px;
+				background-color: white;
+				order: 1;
+				padding: 20px;
+			}
+			.canvas-container {
+				flex-grow: 1;
+				order: 0;
+			}
+
+			.sidebar__current-state {
+				margin-bottom: 20px;
+			}
+
+			.part-list {
+				margin-top: 20px;
+				user-select: none;
+			}
+			.part-list__item {
+				padding: 7px 7px;
+			}
+			.part-list__item:hover {
+				background-color: #EEF;
+				cursor: pointer;
+			}
+			.part-list__item__visibility {
+				padding-left: 10px;
+			}
+			.part-list__item__visibility:hover {
+				color: blue;
+			}
+			.part-list__item.is-selected {
+				font-weight: bold;
+			}
+			.part-list__item.is-active-cut {
+				color: red;
+			}
+
+			#sidebar button {
+		    display: block;
+		    margin: 10px 0;
+		    width: 100%;
+			}
+
+		</style>
+	</head>
+	<body>
+		<!-- <div id="info">
+			<a href="http://threejs.org" target="_blank" rel="noopener">three.js</a> -
+			STL loader test by <a href="https://github.com/aleeper">aleeper</a>. PR2 head from <a href="http://www.ros.org/wiki/pr2_description">www.ros.org</a>
+		</div> -->
+
+		<script src="../js/three.js"></script>
+
+		<script src="../js/loaders/STLLoader.js"></script>
+    <script src="../js/controls/TrackballControls.js"></script>
+
+		<script src="../js/Detector.js"></script>
+		<script src="../js/libs/stats.min.js"></script>
+
+    <script src="../js/ThreeCSG.js"></script>
+
+		<script src="../js/exporters/OBJExporter.js"></script>
+
+		<script src="../js/jquery-3.2.1.min.js"></script>
+
+		<script>
+
+			if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
+
+			var container, stats;
+
+			var camera, cameraTarget, scene, renderer, control;
+
+			var $part_list = $("<div></div>").addClass("part-list");
+
+			var raycaster;
+			var mouse = new THREE.Vector2();
+
+			var material = new THREE.MeshPhongMaterial( { color: 0xAAAAAA, specular: 0x111111, shininess: 200 } );
+			var materialNormal = new THREE.MeshNormalMaterial();
+
+
+			var sphere_raycast = new THREE.Mesh(
+				new THREE.SphereGeometry( 0.1, 0.1, 0.1 ),
+				new THREE.MeshBasicMaterial( { color: 0x0000ff, side: THREE.DoubleSide, transparent: true, opacity: 0.5 } )
+				// new THREE.MeshBasicMaterial( { color: 0xff00ff, shading: THREE.FlatShading } )
+			);
+			sphere_raycast.visible = false;
+
+			/* LOADING_MODEL
+			   EDIT_CUT_PLANE
+			   POST_CUT
+				 ADD_KEY
+				 POST_ADD_KEY
+			*/
+			var scene_store = {
+				"state": "LOADING_MODEL",
+				"models": [],
+				"cut_plane": null
+			};
+
+			console.info("--- INSTRUCTIONS");
+			console.info("1. SETUP:");
+			console.info("toggleMeshVisibility(0)");
+			console.info("moveCutPlaneZ(-0.6)");
+			console.info("moveCutPlaneZ(-1.0)");
+			console.info("2. PERFORM CUT:");
+			console.info("cutUpdate()");
+			console.info("toggleMeshVisibility(0)");
+			console.info("toggleMeshVisibility(1)");
+			console.info("3. EXPORT")
+			console.info("exportAllModels()");
+			console.info("-----------------");
+
+			init();
+			animate();
+
+			// modified from:
+			// https://stackoverflow.com/questions/19190331/unable-to-retain-line-breaks-when-writing-text-file-as-blob
+			// https://stackoverflow.com/questions/3665115/create-a-file-in-memory-for-user-to-download-not-through-server
+			function download(filename, data) {
+				blob = new Blob([data], {type:'text/plain'});
+				var a = document.createElement('a');
+		    a.download = filename;
+		    a.innerHTML = 'download';
+		    a.href = URL.createObjectURL(blob);
+				a.style.display = 'none';
+				document.body.appendChild(a);
+				a.click();
+				document.body.removeChild(a);
+			}
+
+			function exportToObj(filename, mesh) {
+				console.log("trying to export "+filename);
+				console.log(mesh);
+				var exporter = new THREE.OBJExporter();
+				var result = exporter.parse( mesh );
+				download(filename, result);
+			}
+
+			function exportAllModels() {
+				for (var i=0; i<scene_store.models.length; i+=1) {
+					var mesh = scene_store.models[i].mesh;
+					var filename = "model" + i + ".obj"
+					exportToObj(filename, mesh);
+				}
+			}
+
+			function setState(state) {
+				scene_store.state = state;
+				$(".sidebar__current-state").text("State: "+state);
+				console.log("UPDATED STATE: " + state);
+			}
+
+			function enterAddKeyState() {
+				setState("ADD_KEY");
+				showCutPlane();
+				toggleMeshOpacity(0);
+				toggleMeshOpacity(1);
+				sphere_raycast.visible = true;
+				render();
+			}
+
+			function cutKey(mesh, key_mesh, is_positive_key) {
+				var mesh_BSP = new ThreeBSP( mesh );
+				var key_mesh_BSP = new ThreeBSP( key_mesh );
+
+				var result_mesh_BSP;
+				if (is_positive_key) {
+					console.log("PERFORMING UNION");
+					result_mesh_BSP = mesh_BSP.union( key_mesh_BSP );
+				} else {
+					console.log("PERFORMING SUBTRACT");
+					result_mesh_BSP = mesh_BSP.subtract( key_mesh_BSP );
+				}
+				var result_mesh = result_mesh_BSP.toMesh( material.clone() );
+				// scene.add(result_mesh);
+				return result_mesh;
+			}
+
+			function commitKey() {
+				hideCutPlane();
+				// var mesh0 = scene_store.models[0].mesh.clone();
+				// var mesh1 = scene_store.models[1].mesh.clone();
+				var mesh0, mesh1;
+				for (var i=0; i<scene_store.models.length; i+=1) {
+					if (scene_store.models[i].activecut) {
+						if (mesh0 === undefined) {
+							mesh0 = scene_store.models[i].mesh;
+						} else {
+							mesh1 = scene_store.models[i].mesh;
+						}
+					}
+				}
+				mesh0.material.transparent = false;
+				mesh0.material.opacity = 1.0;
+				mesh1.material.transparent = false;
+				mesh1.material.opacity = 1.0;
+				var key = sphere_raycast.clone();
+				key.material = mesh0.material;
+				var positive_mesh = cutKey(mesh0, sphere_raycast, true);
+				var negative_mesh = cutKey(mesh1, key, false);
+
+				positive_mesh.position.set(mesh0.position.x, mesh0.position.y, mesh0.position.z);
+				positive_mesh.scale.set(mesh0.scale.x, mesh0.scale.y, mesh0.scale.z);
+				negative_mesh.position.set(mesh1.position.x, mesh1.position.y, mesh1.position.z);
+				negative_mesh.scale.set(mesh1.scale.x, mesh1.scale.y, mesh1.scale.z);
+
+				// TODO: only remove keys that where involved in the cut
+				for (var i=0; i<scene_store.models.length; i+=1) {
+					if (scene_store.models[i].activecut) {
+						removeMesh(scene_store.models[i].mesh);
+					}
+				}
+				for (var i=0; i<scene_store.models.length; i+=1) {
+					if (scene_store.models[i].activecut) {
+						removeMesh(scene_store.models[i].mesh);
+					}
+				}
+				// while (scene_store.models.length > 0) {
+				// 	console.log("trying to remove ");
+				// 	removeMesh(scene_store.models[0].mesh);
+				// }
+				addMesh(positive_mesh);
+				addMesh(negative_mesh);
+				sphere_raycast.visible = false;
+				render();
+
+				setState("POST_ADD_KEY");
+				enterEditCutPlane();
+			}
+
+			function setColor(mesh, color) {
+				// use like setColor(scene_store.models[0].mesh, 0x00ff00)
+				mesh.material.color.set(new THREE.Color( color ));
+				mesh.material.transparent = true;
+				mesh.material.opacity = 1.0;
+				render();
+			}
+
+			function createCutPlane() {
+				var cut_plane = new THREE.Mesh(
+					new THREE.PlaneBufferGeometry( 40, 40 ),
+          new THREE.MeshBasicMaterial( { color: 0x0000ff, side: THREE.DoubleSide, transparent: true, opacity: 0.5 } )
+				)
+					.translateZ(-1)
+					.rotateX(Math.PI/4);
+				scene.add( cut_plane );
+				scene_store.cut_plane = {
+					"mesh": cut_plane
+				};
+			}
+
+			function moveCutPlaneZ(z) {
+				scene_store.cut_plane.mesh.position.z = z;
+				render();
+			}
+
+			function toggleMeshVisibility(index) {
+				var current_visibility = scene_store.models[index].mesh.visible;
+				scene_store.models[index].visible = !current_visibility;
+				scene_store.models[index].mesh.visible = !current_visibility;
+				render();
+			}
+
+			function selectModel(index) {
+				for (var i=0; i<scene_store.models.length; i+=1) {
+					scene_store.models[i].selected = false;
+					setColor(scene_store.models[i].mesh, 0xffffff);
+				}
+				scene_store.models[index].selected = true;
+				setColor(scene_store.models[index].mesh, 0x0000ff);
+				// scene_store.models[index].mesh.visible = !current_visibility;
+				render();
+			}
+
+			function toggleMeshOpacity(index) {
+				var current_transparency = scene_store.models[index].mesh.material.transparent;
+				if (current_transparency) {
+					scene_store.models[index].mesh.material.transparent = false;
+					scene_store.models[index].mesh.material.opacity = 1.0;
+				} else {
+					scene_store.models[index].mesh.material.transparent = true;
+					scene_store.models[index].mesh.material.opacity = 0.4;
+				}
+				render();
+			}
+
+			function showCutPlane() {
+				scene_store.cut_plane.mesh.visible = true;
+				render();
+			}
+
+			function hideCutPlane() {
+				scene_store.cut_plane.mesh.visible = false;
+				render();
+			}
+
+			function getCutBox(flip) {
+				var translation_vector = scene_store.cut_plane.mesh.position;
+				var rotation_vector = scene_store.cut_plane.mesh.rotation;
+				var cut_plane2_D = 4.0;
+        var cut_plane2 = new THREE.Mesh(
+					new THREE.CubeGeometry( 4, 4, cut_plane2_D ),
+          new THREE.MeshBasicMaterial( { color: 0xff0000, side: THREE.DoubleSide, transparent: true, opacity: 0.5 } )
+				)
+					.translateX(translation_vector.x)
+					.translateY(translation_vector.y)
+					.translateZ(translation_vector.z)
+					.rotateX(rotation_vector.x)
+					.rotateY(rotation_vector.y)
+					.rotateZ(rotation_vector.z)
+					.translateZ(-cut_plane2_D/2.0);
+				if (flip) {
+					// cut_plane2 = cut_plane2.rotateY(Math.PI/2);
+					cut_plane2 = cut_plane2.translateZ(cut_plane2_D);
+				}
+				return cut_plane2;
+				// scene.add( cut_plane2 );
+				// var cubeBSP2 = new ThreeBSP( cut_plane2 );
+			}
+
+			function cutMeshOnPlane(mesh, material) {
+				var cut_plane_positive = getCutBox(false);
+				var cut_plane_positive_BSP = new ThreeBSP( cut_plane_positive );
+				// could use one cut plane box and do subtract and intersect to get each half
+				var cut_plane_negative = getCutBox(true);
+				var cut_plane_negative_BSP = new ThreeBSP( cut_plane_negative );
+
+				// scene.add( cut_plane_positive );
+				// scene.add( cut_plane_negative );
+
+				var meshBSP = new ThreeBSP( mesh );
+
+				var positive_mesh_BSP = meshBSP.subtract( cut_plane_positive_BSP );
+				var positive_mesh = positive_mesh_BSP.toMesh( material.clone() );
+				positive_mesh.material.color.set(new THREE.Color( 0x00ff00 ));
+
+				var negative_mesh_BSP = meshBSP.subtract( cut_plane_negative_BSP );
+				var negative_mesh = negative_mesh_BSP.toMesh( material.clone() );
+				negative_mesh.material.color.set(new THREE.Color( 0xff0000 ));
+
+				return {
+					"positive": positive_mesh,
+					"negative": negative_mesh
+				}
+			}
+
+			function updatePartListDisplay() {
+				$part_list.empty();
+				for (var i=0; i<scene_store.models.length; i+=1) {
+						var $el = $("<div></div>");
+						$el.addClass("part-list__item");
+						if (scene_store.models[i].selected) {
+							$el.addClass("is-selected");
+						}
+						if (scene_store.models[i].activecut) {
+							$el.addClass("is-active-cut");
+						}
+
+						var text = "Model "+i;
+						var $modelName = $("<span></span>")
+							.text(text)
+							.click(function() {
+								selectModel($(this).parent().data("id"));
+								updatePartListDisplay();
+							});
+						$el.append($modelName);
+						var $visibilityIcon = $("<span></span>")
+							.addClass("part-list__item__visibility")
+							.text("[@]")
+							.click(function() {
+								toggleMeshVisibility($(this).parent().data("id"));
+								console.log("clicked on item "+$(this).data("id"));
+								updatePartListDisplay();
+							});
+						if (!scene_store.models[i].visible) {
+							$visibilityIcon.text("[-]");
+						}
+						$el.append($visibilityIcon);
+						$el.data("id", i)
+						$part_list.append($el);
+				}
+			}
+
+			function addMesh(mesh, opts) {
+				console.log("------> add mesh");
+				var model_opts = {
+					"id": 1,
+					"visible": true,
+					"selected": false,
+					"activecut": false,
+					"color": 0x00ff00,
+					"mesh": mesh
+				};
+				if (opts !== undefined) {
+					if (opts.activecut) {
+						model_opts.activecut = opts.activecut
+					}
+				}
+				scene_store.models.push(model_opts);
+				scene.add( mesh );
+
+				updatePartListDisplay();
+
+				return model_opts;
+			}
+
+			function removeMesh(mesh) {
+				console.log("<------ removing mesh");
+				for (var i=0; i<scene_store.models.length; i+=1) {
+					if (scene_store.models[i].mesh === mesh) {
+						console.log("found it");
+						console.log(scene_store.models.length);
+						// new_models = scene_store.models.splice(i, 1);
+						scene_store.models.splice(i, 1);
+						scene.remove( mesh );
+						updatePartListDisplay();
+						return;
+					}
+				}
+				console.error("mesh not found!");
+				console.error(scene_store.models);
+				console.error(mesh)
+			}
+
+			function cutUpdate() {
+				console.log("INSDIE CUT UPDATE");
+				var mesh = scene_store.models[0].mesh;
+				for (var i=0; i<scene_store.models.length; i+=1) {
+					if (scene_store.models[i].selected) {
+						console.log("FOUND SLECTED MESH IN LIST");
+						mesh = scene_store.models[i].mesh;
+					}
+				}
+				var r = cutMeshOnPlane(mesh, material);
+				var positive_mesh = r.positive;
+				var negative_mesh = r.negative;
+				positive_mesh.position.set(mesh.position.x, mesh.position.y, mesh.position.z);
+				positive_mesh.scale.set(mesh.scale.x, mesh.scale.y, mesh.scale.z);
+				negative_mesh.position.set(mesh.position.x, mesh.position.y, mesh.position.z);
+				negative_mesh.scale.set(mesh.scale.x, mesh.scale.y, mesh.scale.z);
+
+				console.log("here");
+				removeMesh(mesh);
+				addMesh(positive_mesh, {activecut: true});
+				addMesh(negative_mesh, {activecut: true});
+
+				hideCutPlane()
+
+				render();
+
+				setState("POST_CUT");
+				enterAddKeyState();
+			}
+
+			function showGround() {
+				var plane = new THREE.Mesh(
+					new THREE.PlaneBufferGeometry( 40, 40 ),
+					new THREE.MeshPhongMaterial( { color: 0xFFFFFF, specular: 0x101010 } )
+				);
+				plane.rotation.x = -Math.PI/2;
+				plane.position.y = -0.5;
+				scene.add( plane );
+
+				plane.receiveShadow = true;
+			}
+
+			function enterEditCutPlane() {
+				setState("EDIT_CUT_PLANE");
+				showCutPlane();
+			}
+
+			function init() {
+
+				var outer_container = $("<div></div>").addClass("outer-container");
+				$("body").append(outer_container);
+
+				var canvas_container = $("<div></div>").addClass("canvas-container");
+				outer_container.append(canvas_container);
+
+				container = document.createElement( 'div' );
+				canvas_container.append($(container));
+				//document.body.appendChild( container );
+
+				camera = new THREE.PerspectiveCamera( 35, window.innerWidth / window.innerHeight, 1, 15 );
+				camera.position.set( 3, 0.15, 3 );
+
+				controls = new THREE.TrackballControls( camera, container );
+
+				controls.rotateSpeed = 1.0;
+				controls.zoomSpeed = 1.2;
+				controls.panSpeed = 0.8;
+
+				controls.noZoom = false;
+				controls.noPan = false;
+
+				controls.staticMoving = true;
+				controls.dynamicDampingFactor = 0.3;
+
+				controls.keys = [ 65, 83, 68 ];
+
+				controls.addEventListener( 'change', render );
+
+				scene = new THREE.Scene();
+				scene.fog = new THREE.Fog( 0xE9EAEC, 2, 15 );
+
+				// raycaster
+				raycaster = new THREE.Raycaster();
+				raycaster.params.Points.threshold = 0.1;
+
+				// Ground
+				// showGround();
+
+				// cut plane
+				createCutPlane();
+
+				scene.add( sphere_raycast );
+
+				// STL files
+
+        var loader = new THREE.STLLoader();
+
+				// var model_path = '../models/stl/binary/JuliaVase001_-_Aqua_-_2mm.stl';
+				var model_path = '../models/stl/binary/dino.stl';
+				loader.load( model_path, function ( geometry ) {
+
+					enterEditCutPlane();
+
+          var geometry2 = new THREE.Geometry().fromBufferGeometry( geometry );
+          var mesh2 = new THREE.Mesh( geometry2, material );
+          mesh2.position.set(0,0,-0.5);
+          // mesh2.rotation.set( - Math.PI / 2, 0.3, 0 );
+					mesh2.scale.set( .01, .01, .01 );
+
+					addMesh(mesh2);
+
+					// mesh.castShadow = true;
+					// mesh.receiveShadow = true;
+
+          render();
+
+					// cutUpdate();
+
+				} );
+
+				// Lights
+
+				scene.add( new THREE.HemisphereLight( 0x443333, 0x111122 ) );
+
+				addShadowedLight( 1, 1, 1, 0xffffff, 1.35 );
+				addShadowedLight( 0.5, 1, -1, 0xffaa00, 1 );
+				// renderer
+
+				renderer = new THREE.WebGLRenderer( { antialias: true } );
+				renderer.setClearColor( scene.fog.color );
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+
+				renderer.gammaInput = true;
+				renderer.gammaOutput = true;
+
+				renderer.shadowMap.enabled = true;
+				renderer.shadowMap.renderReverseSided = false;
+
+				container.appendChild( renderer.domElement );
+
+				// stats
+
+				stats = new Stats();
+				container.appendChild( stats.dom );
+
+				// part list
+				sidebar = $("<div></div>");
+				sidebar.attr("id", "sidebar");
+				outer_container.append( sidebar );
+
+				var title = $("<h1>Choppy</h1>");
+				title.addClass("sidebar__title")
+				sidebar.append(title);
+
+				var $state_display = $("<div>State: </div>").addClass("sidebar__current-state");
+				sidebar.append($state_display);
+
+				var $cut_button = $("<button>Cut</button>")
+				$cut_button.click(function() {
+					cutUpdate();
+				});
+				sidebar.append($cut_button);
+
+				var $export_button = $("<button>Export</button>")
+				$export_button.click(function() {
+					exportAllModels();
+				});
+				sidebar.append($export_button);
+
+				sidebar.append($part_list);
+
+
+
+				//
+
+				window.addEventListener( 'resize', onWindowResize, false );
+				// document.addEventListener( 'mousemove', onDocumentMouseMove, false );
+				$(".canvas-container").mousemove(onDocumentMouseMove);
+				$(".canvas-container").dblclick(function(event) {
+					if (scene_store.state === "ADD_KEY") {
+						commitKey();
+					}
+				});
+
+        render();
+
+			}
+
+			function addShadowedLight( x, y, z, color, intensity ) {
+
+				var directionalLight = new THREE.DirectionalLight( color, intensity );
+				directionalLight.position.set( x, y, z );
+				scene.add( directionalLight );
+
+				directionalLight.castShadow = true;
+
+				var d = 1;
+				directionalLight.shadow.camera.left = -d;
+				directionalLight.shadow.camera.right = d;
+				directionalLight.shadow.camera.top = d;
+				directionalLight.shadow.camera.bottom = -d;
+
+				directionalLight.shadow.camera.near = 1;
+				directionalLight.shadow.camera.far = 4;
+
+				directionalLight.shadow.mapSize.width = 1024;
+				directionalLight.shadow.mapSize.height = 1024;
+
+				directionalLight.shadow.bias = -0.005;
+
+			}
+
+			function onDocumentMouseMove( event ) {
+				event.preventDefault();
+				// console.log(event);
+				mouse.x = ( (event.clientX - $(".canvas-container").position().left) / $(".canvas-container").width() ) * 2 - 1;
+				mouse.y = - ( (event.clientY - $(".canvas-container").position().top) / $(".canvas-container").height() ) * 2 + 1;
+				render();
+			}
+
+			function onWindowResize() {
+
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+
+				renderer.setSize( window.innerWidth, window.innerHeight );
+
+        render();
+
+			}
+
+			function animate() {
+
+				requestAnimationFrame( animate );
+
+				controls.update();
+				stats.update();
+
+			}
+
+      function render() {
+
+				if (scene_store.state === "ADD_KEY" && scene_store.cut_plane) {
+					raycaster.setFromCamera( mouse, camera );
+					var intersections = raycaster.intersectObjects( [scene_store.cut_plane.mesh] );
+					intersection = ( intersections.length ) > 0 ? intersections[ 0 ] : null;
+					if (intersection !== null) {
+						sphere_raycast.position.copy( intersection.point );
+					}
+				}
+
+        renderer.render( scene, camera );
+
+			}
+
+		</script>
+	</body>
+</html>
