@@ -50,6 +50,8 @@
 		<script src="../js/Detector.js"></script>
 		<script src="../js/libs/stats.min.js"></script>
 
+    <script src="../js/ThreeCSG.js"></script>
+
 		<script>
 
 			if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
@@ -101,24 +103,50 @@
 
 				plane.receiveShadow = true;
 
+        // cube cut plane
+        var cubeGeometry = new THREE.CubeGeometry( 1, 1, 1, 1, 1, 1 );
+      	var cubeMesh = new THREE.Mesh( cubeGeometry, material );
+        cubeMesh.position.set(0.3, 0.6, -0.7);
+      	var cubeBSP = new ThreeBSP( cubeMesh );
+        // scene.add( cubeMesh );
+
 				// STL files
 
         var loader = new THREE.STLLoader();
 
 				var material = new THREE.MeshPhongMaterial( { color: 0xAAAAAA, specular: 0x111111, shininess: 200 } );
+        var materialNormal = new THREE.MeshNormalMaterial();
 
 				loader.load( '../models/stl/binary/dino.stl', function ( geometry ) {
 
 					var mesh = new THREE.Mesh( geometry, material );
 
-					// mesh.position.set( 0.136, - 0.37, - 0.6 );
+          // mesh.position.set( 0.136, - 0.37, - 0.6 );
 					mesh.rotation.set( - Math.PI / 2, 0.3, 0 );
 					mesh.scale.set( .01, .01, .01 );
 
-					mesh.castShadow = true;
-					mesh.receiveShadow = true;
+          var geometry2 = new THREE.Geometry().fromBufferGeometry( geometry );
+          var mesh2 = new THREE.Mesh( geometry2, material );
+          mesh2.position.set(0,0,-0.5);
+          // mesh2.rotation.set( - Math.PI / 2, 0.3, 0 );
+					mesh2.scale.set( .01, .01, .01 );
+          var meshBSP = new ThreeBSP( mesh2 );
+          // scene.add( mesh2 );
 
-					scene.add( mesh );
+          var newBSP = meshBSP.subtract( cubeBSP );
+        	var newMesh = newBSP.toMesh( materialNormal );
+        	// newMesh.position.set(0.3, 0.6, -0.7);
+          newMesh.position.set(0,0,-0.5);
+					newMesh.scale.set( .01, .01, .01 );
+          console.log(newMesh);
+        	scene.add( newMesh );
+
+					// mesh.castShadow = true;
+					// mesh.receiveShadow = true;
+          //
+					// scene.add( mesh );
+
+          render();
 
 				} );
 
