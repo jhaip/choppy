@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>three.js webgl - STL</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
+			body {
+				font-family: Monospace;
+				background-color: #000000;
+				margin: 0px;
+				overflow: hidden;
+			}
+
+			#info {
+				color: #fff;
+				position: absolute;
+				top: 10px;
+				width: 100%;
+				text-align: center;
+				z-index: 100;
+				display:block;
+
+			}
+
+			a { color: skyblue }
+			.button { background:#999; color:#eee; padding:0.2em 0.5em; cursor:pointer }
+			.highlight { background:orange; color:#fff; }
+
+			span {
+				display: inline-block;
+				width: 60px;
+				float: left;
+				text-align: center;
+			}
+
+		</style>
+	</head>
+	<body>
+		<div id="info">
+			<a href="http://threejs.org" target="_blank" rel="noopener">three.js</a> -
+			STL loader test by <a href="https://github.com/aleeper">aleeper</a>. PR2 head from <a href="http://www.ros.org/wiki/pr2_description">www.ros.org</a>
+		</div>
+
+		<script src="../js/three.js"></script>
+
+		<script src="../js/loaders/STLLoader.js"></script>
+    <script src="../js/controls/TrackballControls.js"></script>
+
+		<script src="../js/Detector.js"></script>
+		<script src="../js/libs/stats.min.js"></script>
+
+    <script src="../js/ThreeCSG.js"></script>
+
+		<script>
+
+			if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
+
+			var container, stats;
+
+			var camera, cameraTarget, scene, renderer, control;
+
+			init();
+			animate();
+
+			function init() {
+
+				container = document.createElement( 'div' );
+				document.body.appendChild( container );
+
+				camera = new THREE.PerspectiveCamera( 35, window.innerWidth / window.innerHeight, 1, 15 );
+				camera.position.set( 3, 0.15, 3 );
+
+				controls = new THREE.TrackballControls( camera );
+
+				controls.rotateSpeed = 1.0;
+				controls.zoomSpeed = 1.2;
+				controls.panSpeed = 0.8;
+
+				controls.noZoom = false;
+				controls.noPan = false;
+
+				controls.staticMoving = true;
+				controls.dynamicDampingFactor = 0.3;
+
+				controls.keys = [ 65, 83, 68 ];
+
+				controls.addEventListener( 'change', render );
+
+				scene = new THREE.Scene();
+				scene.fog = new THREE.Fog( 0xE9EAEC, 2, 15 );
+
+
+				// Ground
+
+				var plane = new THREE.Mesh(
+					new THREE.PlaneBufferGeometry( 40, 40 ),
+					new THREE.MeshPhongMaterial( { color: 0xFFFFFF, specular: 0x101010 } )
+				);
+				plane.rotation.x = -Math.PI/2;
+				plane.position.y = -0.5;
+				scene.add( plane );
+
+				plane.receiveShadow = true;
+
+        // cube cut plane
+        var cubeGeometry = new THREE.CubeGeometry( 1, 1, 1, 1, 1, 1 );
+      	var cubeMesh = new THREE.Mesh( cubeGeometry, material );
+        cubeMesh.position.set(0.3, 0.6, -0.7);
+      	var cubeBSP = new ThreeBSP( cubeMesh );
+        // scene.add( cubeMesh );
+
+				// cut plane
+        var cut_plane = new THREE.Mesh(
+					new THREE.PlaneBufferGeometry( 40, 40 ),
+          new THREE.MeshBasicMaterial( { color: 0x0000ff, side: THREE.DoubleSide, transparent: true, opacity: 0.5 } )
+				)
+				.translateZ(-1)
+				.rotateX(Math.PI/4);
+				// cut_plane.rotation.x = Math.PI/4;
+				// cut_plane.position.y = 0;
+        // // cut_plane.position.x = 10;
+        // cut_plane.position.z = 0;
+				// var planeBSP = new ThreeBSP( cut_plane );
+				scene.add( cut_plane );
+
+				// cut plane 222222
+				var cut_plane2_D = 4.0;
+        var cut_plane2 = new THREE.Mesh(
+					new THREE.CubeGeometry( 4, 4, cut_plane2_D ),
+          new THREE.MeshBasicMaterial( { color: 0xff0000, side: THREE.DoubleSide, transparent: true, opacity: 0.5 } )
+				)
+					// .translateX(100/2)
+					// .translateY(100/2)
+					.translateZ(-1.0)
+					// .translateY(-5*Math.cos(Math.PI/4))
+					.rotateX(Math.PI/4)
+					// .translateY(1)
+
+					// .translateZ(0.01*Math.sin(Math.PI/4))
+					// .translateY(1)
+					.translateZ(-cut_plane2_D/2.0);
+				// cut_plane2.rotation.x = Math.PI/4;
+				// cut_plane2.position.y = 1//1.5+0.21;
+        // cut_plane2.position.x = 0;
+        // cut_plane2.position.z = 0;
+				scene.add( cut_plane2 );
+				var cubeBSP2 = new ThreeBSP( cut_plane2 );
+
+
+				// STL files
+
+        var loader = new THREE.STLLoader();
+
+				var material = new THREE.MeshPhongMaterial( { color: 0xAAAAAA, specular: 0x111111, shininess: 200 } );
+        var materialNormal = new THREE.MeshNormalMaterial();
+
+				loader.load( '../models/stl/binary/dino.stl', function ( geometry ) {
+
+					var mesh = new THREE.Mesh( geometry, material );
+
+          // mesh.position.set( 0.136, - 0.37, - 0.6 );
+					mesh.rotation.set( - Math.PI / 2, 0.3, 0 );
+					mesh.scale.set( .01, .01, .01 );
+
+          var geometry2 = new THREE.Geometry().fromBufferGeometry( geometry );
+          var mesh2 = new THREE.Mesh( geometry2, material );
+          mesh2.position.set(0,0,-0.5);
+          // mesh2.rotation.set( - Math.PI / 2, 0.3, 0 );
+					mesh2.scale.set( .01, .01, .01 );
+          var meshBSP = new ThreeBSP( mesh2 );
+          // scene.add( mesh2 );
+
+          var newBSP = meshBSP.subtract( cubeBSP2 );
+        	var newMesh = newBSP.toMesh( materialNormal );
+        	// newMesh.position.set(0.3, 0.6, -0.7);
+          newMesh.position.set(0,0,-0.5);
+					newMesh.scale.set( .01, .01, .01 );
+        	scene.add( newMesh );
+
+					// mesh.castShadow = true;
+					// mesh.receiveShadow = true;
+          //
+					// scene.add( mesh );
+
+          render();
+
+				} );
+
+				// Lights
+
+				scene.add( new THREE.HemisphereLight( 0x443333, 0x111122 ) );
+
+				addShadowedLight( 1, 1, 1, 0xffffff, 1.35 );
+				addShadowedLight( 0.5, 1, -1, 0xffaa00, 1 );
+				// renderer
+
+				renderer = new THREE.WebGLRenderer( { antialias: true } );
+				renderer.setClearColor( scene.fog.color );
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+
+				renderer.gammaInput = true;
+				renderer.gammaOutput = true;
+
+				renderer.shadowMap.enabled = true;
+				renderer.shadowMap.renderReverseSided = false;
+
+				container.appendChild( renderer.domElement );
+
+				// stats
+
+				stats = new Stats();
+				container.appendChild( stats.dom );
+
+				//
+
+				window.addEventListener( 'resize', onWindowResize, false );
+
+        render();
+
+			}
+
+			function addShadowedLight( x, y, z, color, intensity ) {
+
+				var directionalLight = new THREE.DirectionalLight( color, intensity );
+				directionalLight.position.set( x, y, z );
+				scene.add( directionalLight );
+
+				directionalLight.castShadow = true;
+
+				var d = 1;
+				directionalLight.shadow.camera.left = -d;
+				directionalLight.shadow.camera.right = d;
+				directionalLight.shadow.camera.top = d;
+				directionalLight.shadow.camera.bottom = -d;
+
+				directionalLight.shadow.camera.near = 1;
+				directionalLight.shadow.camera.far = 4;
+
+				directionalLight.shadow.mapSize.width = 1024;
+				directionalLight.shadow.mapSize.height = 1024;
+
+				directionalLight.shadow.bias = -0.005;
+
+			}
+
+			function onWindowResize() {
+
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+
+				renderer.setSize( window.innerWidth, window.innerHeight );
+
+        render();
+
+			}
+
+			function animate() {
+
+				requestAnimationFrame( animate );
+
+				controls.update();
+				stats.update();
+
+			}
+
+      function render() {
+
+        renderer.render( scene, camera );
+
+			}
+
+		</script>
+	</body>
+</html>
