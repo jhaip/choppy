@@ -1,0 +1,78 @@
+body {
+  font-family: Monospace;
+  background-color: #000000;
+  margin: 0px;
+  overflow: hidden;
+}
+
+#info {
+  color: #fff;
+  position: absolute;
+  top: 10px;
+  width: 100%;
+  text-align: center;
+  z-index: 100;
+  display:block;
+
+}
+
+a { color: skyblue }
+.button { background:#999; color:#eee; padding:0.2em 0.5em; cursor:pointer }
+.highlight { background:orange; color:#fff; }
+
+.outer-container {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+}
+#sidebar {
+  flex: 200px 0 0;
+  width: 200px;
+  background-color: white;
+  order: 1;
+  padding: 20px;
+}
+.canvas-container {
+  flex-grow: 1;
+  order: 0;
+}
+
+.sidebar__current-state {
+  margin-bottom: 20px;
+}
+
+.sidebar__action-button {
+  display: none;
+}
+
+.part-list {
+  margin-top: 20px;
+  user-select: none;
+}
+.part-list__item {
+  padding: 7px 7px;
+}
+.part-list__item:hover {
+  background-color: #EEF;
+  cursor: pointer;
+}
+.part-list__item__visibility {
+  padding-left: 10px;
+}
+.part-list__item__visibility:hover {
+  color: blue;
+}
+.part-list__item.is-selected {
+  font-weight: bold;
+}
+.part-list__item.is-active-cut {
+  color: red;
+}
+
+#sidebar button {
+  display: block;
+  margin: 10px 0;
+  width: 100%;
+}
