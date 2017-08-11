@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>three.js webgl - STL</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<link rel="stylesheet" type="text/css" href="styles.css" />
+	</head>
+	<body>
+    <div class="outer-container">
+      <div class="canvas-container"></div>
+      <div id="sidebar">
+        <h1 class="sidebar__title">Choppy</h1>
+        <div class="sidebar__current-state"></div>
+        <button class="sidebar__action-button sidebar__load-stl">Load Example</button>
+				<input  class="sidebar__action-button sidebar__load-user-stl" type='file' id="fileUpload" />
+        <button class="sidebar__action-button sidebar__start-cut">Start Cut</button>
+        <button class="sidebar__action-button sidebar__exit-cut">Exit Cut</button>
+        <button class="sidebar__action-button sidebar__cut">Cut</button>
+        <button class="sidebar__action-button sidebar__exit-add-key">Exit Add Key</button>
+        <button class="sidebar__action-button sidebar__export">Export</button>
+        <div class="part-list"></div>
+      </div>
+    </div>
+
+		<script src="../../js/three.js"></script>
+		<script src="../../js/loaders/STLLoader.js"></script>
+    <script src="../../js/controls/TrackballControls.js"></script>
+		<script src="../../js/controls/TransformControls.js"></script>
+		<script src="../../js/Detector.js"></script>
+		<script src="../../js/libs/stats.min.js"></script>
+    <script src="../../js/ThreeCSG.js"></script>
+		<script src="../../js/exporters/OBJExporter.js"></script>
+		<script src="../../js/jquery-3.2.1.min.js"></script>
+    <script src="export_files.js"></script>
+    <script src="ui.js"></script>
+    <script src="scene.js"></script>
+    <script src="models.js"></script>
+    <script src="state.js"></script>
+    <script src="cut.js"></script>
+    <script src="mesh_utils.js"></script>
+    <script src="keying.js"></script>
+		<script src="main.js"></script>
+	</body>
+</html>
