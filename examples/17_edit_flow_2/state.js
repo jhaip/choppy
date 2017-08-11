@@ -2,7 +2,6 @@
    LOADING_MODEL
    IDLE
    EDIT_CUT_PLANE
-   POST_CUT
    ADD_KEY
 */
 var scene_store = {

@@ -104,6 +104,5 @@ function cutUpdate() {
 
   render();
 
-  setState("POST_CUT");
   enterAddKeyState();
 }

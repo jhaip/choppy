@@ -17,15 +17,10 @@ function updateUIControls() {
     break;
   case "EDIT_CUT_PLANE":
     $(".sidebar__cut").show();
-    $(".sidebar__export").show();
     $(".sidebar__exit-cut").show();
     break;
   case "ADD_KEY":
-    $(".sidebar__export").show();
     $(".sidebar__exit-add-key").show();
-    break;
-  case "POST_CUT":
-    $(".sidebar__export").show();
     break;
   }
 }
