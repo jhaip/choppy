@@ -60,8 +60,20 @@ function enterAddKeyState() {
   // set color of positive-target
   // set color of negative-target
   // set color of non-targets
-  toggleMeshOpacity(0);
-  toggleMeshOpacity(1);
+  // toggleMeshOpacity(0);
+  // toggleMeshOpacity(1);
+  for (var i=0; i<scene_store.models.length; i+=1) {
+    if (scene_store.models[i]["keyactive__positive-target"]) {
+      // color green transparent
+      setColor(scene_store.models[i].mesh, 0x00ff00, 0.5);
+    } else if (scene_store.models[i]["keyactive__negative-target"]) {
+      // color red transparent
+      setColor(scene_store.models[i].mesh, 0xff0000, 0.5);
+    } else {
+      // color white transparent
+      scene_store.models[i].mesh.material = material.clone();
+    }
+  }
   showKeys();
   render();
 }

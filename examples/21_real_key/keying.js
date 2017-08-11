@@ -110,8 +110,8 @@ function commitKey() {
   // 	console.log("trying to remove ");
   // 	removeMesh(scene_store.models[0].mesh);
   // }
-  addMesh(positive_mesh, {keyactive: true});
-  addMesh(negative_mesh, {keyactive: true});
+  addMesh(positive_mesh, {keyactive: true, "keyactive__positive-target": true});
+  addMesh(negative_mesh, {keyactive: true, "keyactive__negative-target": true});
   hideKeys();
   render();
 
