@@ -38,10 +38,14 @@ function updatePartListDisplay() {
       } else {
         $el.removeClass("is-selected");
       }
-      if (scene_store.models[i].activecut) {
-        $el.addClass("is-active-cut");
+      if (scene_store.models[i].keyactive) {
+        if (scene_store.models[i]["keyactive__positive-target"]) {
+          $el.addClass("is-active-cut is-active-cut--positive");
+        } else if (scene_store.models[i]["keyactive__negative-target"]) {
+          $el.addClass("is-active-cut is-active-cut--negative");
+        }
       } else {
-        $el.removeClass("is-active-cut");
+        $el.removeClass("is-active-cut is-active-cut--positive is-active-cut--negative");
       }
 
       var text = "Model "+i;

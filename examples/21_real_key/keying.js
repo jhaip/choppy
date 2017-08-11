@@ -1,25 +1,51 @@
-var sphere_raycast
+var sphere_raycast;
+var positive_key;
+var negative_key;
+var key_radiusTop = 0.02;
+var key_radiusBottom = key_radiusTop;
+var key_height = 0.1;
 
 function createKeys() {
-  sphere_raycast = new THREE.Mesh(
-    new THREE.SphereGeometry( 0.1, 0.1, 0.1 ),
-    new THREE.MeshBasicMaterial( { color: 0x0000ff, side: THREE.DoubleSide, transparent: true, opacity: 0.5 } )
+
+  positive_key = new THREE.Mesh(
+    new THREE.CylinderGeometry( key_radiusTop, key_radiusBottom, key_height),
+    new THREE.MeshBasicMaterial( { color: 0x0000ff, side: THREE.DoubleSide, transparent: false } )
   );
-  sphere_raycast.visible = false;
-  scene.add( sphere_raycast );
+  negative_key = new THREE.Mesh(
+    new THREE.CylinderGeometry( key_radiusTop, key_radiusBottom, key_height),
+    new THREE.MeshBasicMaterial( { color: 0x0000ff, side: THREE.DoubleSide, transparent: false } )
+  );
+  positive_key.visible = false;
+  negative_key.visible = false;
+  scene.add( positive_key );
+  scene.add( negative_key );
 }
 
 function moveKeys(position) {
-  sphere_raycast.position.copy(position);
+  var translation_vector = scene_store.cut_plane.mesh.position;
+  var rotation_vector = scene_store.cut_plane.mesh.rotation;
+  positive_key.position.copy(position);
+  positive_key.rotation.copy(rotation_vector);
+  positive_key.translateZ(-key_height/2.0);
+  positive_key.rotateX(Math.PI/2.);
+
+  negative_key.position.copy(position);
+  negative_key.rotation.copy(rotation_vector);
+  negative_key.translateZ(-key_height/2.0);
+  negative_key.rotateX(Math.PI/2.);
+
+
 }
 
 function showKeys() {
-  sphere_raycast.visible = true;
+  positive_key.visible = true;
+  negative_key.visible = true;
   render();
 }
 
 function hideKeys() {
-  sphere_raycast.visible = false;
+  positive_key.visible = false;
+  negative_key.visible = false;
   render();
 }
 
@@ -46,7 +72,7 @@ function commitKey() {
   // var mesh1 = scene_store.models[1].mesh.clone();
   var mesh0, mesh1;
   for (var i=0; i<scene_store.models.length; i+=1) {
-    if (scene_store.models[i].activecut) {
+    if (scene_store.models[i].keyactive) {
       if (mesh0 === undefined) {
         mesh0 = scene_store.models[i].mesh;
       } else {
@@ -58,10 +84,11 @@ function commitKey() {
   mesh0.material.opacity = 1.0;
   mesh1.material.transparent = false;
   mesh1.material.opacity = 1.0;
-  var key = sphere_raycast.clone();
-  key.material = mesh0.material;
-  var positive_mesh = cutKey(mesh0, key, true);
-  var negative_mesh = cutKey(mesh1, key, false);
+  var positive_key_clone = positive_key.clone();
+  var negative_key_clone = negative_key.clone();
+  // key.material = mesh0.material;
+  var positive_mesh = cutKey(mesh0, positive_key_clone, true);
+  var negative_mesh = cutKey(mesh1, negative_key_clone, false);
 
   positive_mesh.position.set(mesh0.position.x, mesh0.position.y, mesh0.position.z);
   positive_mesh.scale.set(mesh0.scale.x, mesh0.scale.y, mesh0.scale.z);
@@ -70,12 +97,12 @@ function commitKey() {
 
   // TODO: only remove keys that where involved in the cut
   for (var i=0; i<scene_store.models.length; i+=1) {
-    if (scene_store.models[i].activecut) {
+    if (scene_store.models[i].keyactive) {
       removeMesh(scene_store.models[i].mesh);
     }
   }
   for (var i=0; i<scene_store.models.length; i+=1) {
-    if (scene_store.models[i].activecut) {
+    if (scene_store.models[i].keyactive) {
       removeMesh(scene_store.models[i].mesh);
     }
   }
@@ -83,9 +110,9 @@ function commitKey() {
   // 	console.log("trying to remove ");
   // 	removeMesh(scene_store.models[0].mesh);
   // }
-  addMesh(positive_mesh, {activecut: true});
-  addMesh(negative_mesh, {activecut: true});
-  sphere_raycast.visible = false;
+  addMesh(positive_mesh, {keyactive: true});
+  addMesh(negative_mesh, {keyactive: true});
+  hideKeys();
   render();
 
   enterAddKeyState();

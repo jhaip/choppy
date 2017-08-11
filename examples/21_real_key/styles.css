@@ -67,9 +67,13 @@ a { color: skyblue }
 .part-list__item.is-selected {
   font-weight: bold;
 }
-.part-list__item.is-active-cut {
+.part-list__item.is-active-cut--positive {
+  color: #008800;
+}
+.part-list__item.is-active-cut--negative {
   color: red;
 }
+
 
 #sidebar button {
   display: block;

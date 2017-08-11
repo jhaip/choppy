@@ -4,16 +4,21 @@ function selectModel(index) {
     setColor(scene_store.models[i].mesh, 0xffffff);
   }
   scene_store.models[index].selected = true;
-  setColor(scene_store.models[index].mesh, 0x0000ff);
+  setColor(scene_store.models[index].mesh, 0x0055ff);
+  disableMeshOpacity(scene_store.models[index].mesh);
   // scene_store.models[index].mesh.visible = !current_visibility;
   render();
+}
+
+function disableMeshOpacity(mesh) {
+  mesh.material.transparent = false;
+  mesh.material.opacity = 1.0;
 }
 
 function toggleMeshOpacity(index) {
   var current_transparency = scene_store.models[index].mesh.material.transparent;
   if (current_transparency) {
-    scene_store.models[index].mesh.material.transparent = false;
-    scene_store.models[index].mesh.material.opacity = 1.0;
+    disableMeshOpacity(scene_store.models[index].mesh);
   } else {
     scene_store.models[index].mesh.material.transparent = true;
     scene_store.models[index].mesh.material.opacity = 0.4;

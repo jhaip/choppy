@@ -19,11 +19,13 @@ function moveCutPlaneZ(z) {
 
 function showCutPlane() {
   scene_store.cut_plane.mesh.visible = true;
+  scene_store.cut_plane.mesh.material.visible = true;
   render();
 }
 
 function hideCutPlane() {
-  scene_store.cut_plane.mesh.visible = false;
+  // scene_store.cut_plane.mesh.visible = false;
+  scene_store.cut_plane.mesh.material.visible = false;
   render();
 }
 
@@ -66,11 +68,11 @@ function cutMeshOnPlane(mesh, material) {
 
   var positive_mesh_BSP = meshBSP.subtract( cut_plane_positive_BSP );
   var positive_mesh = positive_mesh_BSP.toMesh( material.clone() );
-  positive_mesh.material.color.set(new THREE.Color( 0x00ff00 ));
+  // positive_mesh.material.color.set(new THREE.Color( 0x00ff00 ));
 
   var negative_mesh_BSP = meshBSP.subtract( cut_plane_negative_BSP );
   var negative_mesh = negative_mesh_BSP.toMesh( material.clone() );
-  negative_mesh.material.color.set(new THREE.Color( 0xff0000 ));
+  // negative_mesh.material.color.set(new THREE.Color( 0xff0000 ));
 
   return {
     "positive": positive_mesh,
@@ -97,8 +99,8 @@ function cutUpdate() {
 
   console.log("here");
   removeMesh(mesh);
-  addMesh(positive_mesh, {activecut: true});
-  addMesh(negative_mesh, {activecut: true});
+  addMesh(positive_mesh, {keyactive: true, "keyactive__positive-target": true});
+  addMesh(negative_mesh, {keyactive: true, "keyactive__negative-target": true});
 
   hideCutPlane()
 
